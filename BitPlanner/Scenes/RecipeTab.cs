@@ -20,6 +20,7 @@ public partial class RecipeTab : VBoxContainer
     private Texture2D _errorIcon;
     private PopupPanel _recipeLoopPopup;
     private Label _recipeLoopLabel;
+    private Button _recipeCollapseExpandButton;
 
     public override void _Ready()
     {
@@ -38,6 +39,9 @@ public partial class RecipeTab : VBoxContainer
 
         _quantitySelection = recipeHeader.GetNode<SpinBox>("VBoxContainer2/HBoxContainer2/Quantity");
         _quantitySelection.ValueChanged += OnQuantityChanged;
+
+        _recipeCollapseExpandButton = recipeHeader.GetNode<Button>("VBoxContainer2/HBoxContainer2/CollapseExpand");
+        _recipeCollapseExpandButton.Pressed += OnCollapseExpandButtonPressed;
 
         _recipeTree = GetNode<Tree>("RecipeTree");
         _recipeTree.SetColumnCustomMinimumWidth(1, 86);
@@ -245,8 +249,6 @@ public partial class RecipeTab : VBoxContainer
                     continue;
                 }
                 var child = treeItem.CreateChild();
-                child.Collapsed = true;
-
                 var childMinQuantity = (uint)Math.Ceiling((double)minQuantity / maxOutput) * consumedItem.Quantity;
                 // If minOutput is 0 it means that the item is not guaranteed to craft, so we can't know maximum quantity for ingredients and it's therefore set to 0
                 var childMaxQuantity = minOutput > 0 ? (uint)Math.Ceiling((double)maxQuantity / minOutput) * consumedItem.Quantity : 0;
@@ -281,6 +283,34 @@ public partial class RecipeTab : VBoxContainer
         var id = treeItem.GetMetadata(0).AsUInt64();
         var recipeMeta = treeItem.GetMetadata(1).AsGodotArray();
         BuildTree(id, treeItem, [id], recipeMeta[0].AsUInt32(), (uint)quantity, (uint)quantity);
+    }
+
+    private bool _isFullyCollapsed = false;
+    private void OnCollapseExpandButtonPressed()
+    {
+        _isFullyCollapsed = !_isFullyCollapsed;
+
+        if(_isFullyCollapsed)
+            _recipeCollapseExpandButton.Text = "Expand All";
+        else
+            _recipeCollapseExpandButton.Text = "Collapse All";
+
+
+        var treeRoot = GetTreeRoot();
+
+        foreach (var child in treeRoot.GetChildren())
+        {
+            CollapseExpandChildren(child, _isFullyCollapsed);
+        }
+    }
+
+    private void CollapseExpandChildren(TreeItem item, bool collapse)
+    {
+        item.Collapsed = _isFullyCollapsed;
+        foreach (var child in item.GetChildren())
+        {
+            CollapseExpandChildren(child, collapse);
+        }
     }
 
     private void GetTreeRowText(TreeItem item, bool[] indents, ref StringBuilder text)
